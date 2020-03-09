@@ -8,8 +8,10 @@ On square screens, the full text will always be visible on-screen. On round scre
 
 ### Why?
 
-I don't like having to remember to change my watchface.
+I don't like having to remember to change my watchface, but I want the always-on display.
 I've already had to return it once for burn-in after I just used a single watchface for a year or so.
 
 I tried some similar faces made with facer and other apps, but they seemed to make the watch even slower, so I decided I wanted something native and lightweight. 
 You can't get much ligher than this app.
+
+My battery is usually around 50% at the end of the day.
