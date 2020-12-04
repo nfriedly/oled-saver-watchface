@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -23,22 +24,13 @@ import java.text.SimpleDateFormat;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Analog watch face with a ticking second hand. In ambient mode, the second hand isn't
- * shown. On devices with low-bit ambient mode, the hands are drawn without anti-aliasing in ambient
- * mode. The watch face is drawn with less contrast in mute mode.
- *
- * Important Note: Because watch face apps do not have a default Activity in
- * their project, you will need to set your Configurations to
- * "Do not launch Activity" for both the Wear and/or Application modules. If you
- * are unsure how to do this, please review the "Run Starter project" section
- * in the Google Watch Face Code Lab:
- * https://codelabs.developers.google.com/codelabs/watchface/index.html#0
+ * Digital watch face where the time moves to a new random location every minute.
+ * The goal is to enabled for long periods of use without potential burn-in.
  */
 public class OLEDSaver extends CanvasWatchFaceService {
 
     /*
-     * Updates rate in milliseconds for interactive mode. We update once a second to advance the
-     * second hand.
+     * Updates rate in milliseconds for interactive mode.
      */
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.MINUTES.toMillis(1);
 
@@ -93,10 +85,15 @@ public class OLEDSaver extends CanvasWatchFaceService {
         private String mTime = "";
         private int x;
         private int y;
+        private boolean isRound;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
+
+            Configuration config = new Configuration();
+            config.setToDefaults();
+            isRound = config.isScreenRound();
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(OLEDSaver.this)
                     .setAcceptsTapEvents(true)
@@ -155,9 +152,20 @@ public class OLEDSaver extends CanvasWatchFaceService {
 
             x = ThreadLocalRandom.current().nextInt(0, bounds.width() - mTimeBounds.width() + 1);
             y = ThreadLocalRandom.current().nextInt(0, bounds.height() - mTimeBounds.height() + 1) - mTimeBounds.top;
-            // todo: keep it visible on round screens
-            // determine the distance to the nearest two edges (top/bottom and left/right),
-            // if it's less than some minimum value, calculate a new position
+
+            if (isRound) {
+                // round screens still use a square coordinate-system, but some of the pixels just aren't there.
+                // a little bit of the number being off-screen is probably OK, but too much makes it hard to read.
+
+                // determine the distance to the nearest two edges (top/bottom and left/right),
+                // if it's less than some minimum value, calculate a new random position
+                int xDistance = Math.min(x, bounds.width() - (x + mTimeBounds.width()));
+                int yDistance = Math.min(y, bounds.height() - (y + mTimeBounds.height()));
+
+                if (xDistance + yDistance < 20) { // todo: calculate the min value based on the screen's resolution
+                    calculateLocation(bounds);
+                }
+            }
         }
 
 
@@ -235,8 +243,6 @@ public class OLEDSaver extends CanvasWatchFaceService {
          * Handle updating the time periodically in interactive mode.
          */
         private void handleUpdateTimeMessage() {
-            // todo: check if the current minute is different from the last update minute and then update if so
-            // or maybe just use onTimeTick() ?
             invalidate();
             if (shouldTimerBeRunning()) {
                 long timeMs = System.currentTimeMillis();
