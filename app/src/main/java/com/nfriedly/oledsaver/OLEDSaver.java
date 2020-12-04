@@ -4,17 +4,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.graphics.Typeface;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import androidx.palette.graphics.Palette;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
@@ -90,12 +85,14 @@ public class OLEDSaver extends CanvasWatchFaceService {
             }
         };
         private boolean mRegisteredTimeZoneReceiver = false;
-        private boolean mMuteMode;
         private Paint mTimePaint;
         private Paint mBackgroundPaint;
         private boolean mAmbient;
         private SimpleDateFormat timeFormat;
         private Rect mTimeBounds = new Rect();
+        private String mTime = "";
+        private int x;
+        private int y;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -118,7 +115,6 @@ public class OLEDSaver extends CanvasWatchFaceService {
         }
 
         private void initializeWatchFace() {
-
             mTimePaint = new Paint();
             mTimePaint.setColor(Color.WHITE);
             mTimePaint.setAntiAlias(true);
@@ -143,23 +139,26 @@ public class OLEDSaver extends CanvasWatchFaceService {
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
             mAmbient = inAmbientMode;
+            if (mAmbient) {
+                mTimePaint.setShadowLayer(3f, 0f, 0f, Color.WHITE);
+                mTimePaint.setColor(Color.BLACK);
+                invalidate();
+            } else {
+                mTimePaint.setColor(Color.WHITE);
+                mTimePaint.clearShadowLayer();
+            }
             updateTimer();
         }
 
+        public void calculateLocation(Rect bounds) {
+            mTimePaint.getTextBounds(mTime, 0, mTime.length(), mTimeBounds);
 
-        @Override
-        public void onInterruptionFilterChanged(int interruptionFilter) {
-            super.onInterruptionFilterChanged(interruptionFilter);
-            boolean inMuteMode = (interruptionFilter == WatchFaceService.INTERRUPTION_FILTER_NONE);
-
-            /* Dim display in mute mode. */
-            if (mMuteMode != inMuteMode) {
-                mMuteMode = inMuteMode;
-                mTimePaint.setAlpha(inMuteMode ? 100 : 255);
-                invalidate();
-            }
+            x = ThreadLocalRandom.current().nextInt(0, bounds.width() - mTimeBounds.width() + 1);
+            y = ThreadLocalRandom.current().nextInt(0, bounds.height() - mTimeBounds.height() + 1) - mTimeBounds.top;
+            // todo: keep it visible on round screens
+            // determine the distance to the nearest two edges (top/bottom and left/right),
+            // if it's less than some minimum value, calculate a new position
         }
-
 
 
         @Override
@@ -171,10 +170,11 @@ public class OLEDSaver extends CanvasWatchFaceService {
 
             String time = timeFormat.format(mCalendar.getTime());
 
-            mTimePaint.getTextBounds(time, 0, time.length(), mTimeBounds);
-
-            int x = ThreadLocalRandom.current().nextInt(0, bounds.width() - mTimeBounds.width() + 1);
-            int y = ThreadLocalRandom.current().nextInt(0, bounds.height() - mTimeBounds.height() + 1) - mTimeBounds.top;
+            // todo: compare the hours and minutes instead of making a new string for each draw
+            if(!time.equals(mTime)) {
+                mTime = time;
+                calculateLocation(bounds);
+            }
 
             canvas.drawText(time, x, y, mTimePaint);
         }
