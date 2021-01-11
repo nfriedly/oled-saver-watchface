@@ -1,4 +1,7 @@
-package com.nfriedly.oledsaver;
+/**
+ * Copyright 2021 Incline Digital LLC
+ */
+package digital.incline.oledsaver;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -16,11 +19,11 @@ import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
-import java.text.SimpleDateFormat;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Digital watch face where the time moves to a new random location every minute.
@@ -28,9 +31,6 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class OLEDSaver extends CanvasWatchFaceService {
 
-    /*
-     * Updates rate in milliseconds for interactive mode.
-     */
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.MINUTES.toMillis(1);
 
     /**
@@ -65,7 +65,6 @@ public class OLEDSaver extends CanvasWatchFaceService {
 
     private class Engine extends CanvasWatchFaceService.Engine {
 
-        /* Handler to update the time once a second in interactive mode. */
         private final Handler mUpdateTimeHandler = new EngineHandler(this);
         private Calendar mCalendar;
         private final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
@@ -77,17 +76,16 @@ public class OLEDSaver extends CanvasWatchFaceService {
         };
         private boolean mRegisteredTimeZoneReceiver = false;
         private Paint mTimePaint;
-        private Paint mBackgroundPaint;
         private boolean mAmbient;
         private SimpleDateFormat timeFormat;
-        private Rect mTimeBounds = new Rect();
+        private final Rect mTimeBounds = new Rect();
         private String mTime = "";
         private int x;
         private int y;
         private boolean isRound;
         // unicode circles: ∙ • ● ⚫ ⬤
         private final String mNotificationDot = "∙";
-        private Rect mNotificationBounds = new Rect();
+        private final Rect mNotificationBounds = new Rect();
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -98,29 +96,17 @@ public class OLEDSaver extends CanvasWatchFaceService {
             isRound = config.isScreenRound();
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(OLEDSaver.this)
-                    .setAcceptsTapEvents(true)
                     .setHideNotificationIndicator(true)
                     .build());
 
             mCalendar = Calendar.getInstance();
             timeFormat = new SimpleDateFormat("h:mm");
 
-            initializeBackground();
-            initializeWatchFace();
-        }
-
-        private void initializeBackground() {
-            mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(Color.BLACK);
-        }
-
-        private void initializeWatchFace() {
             mTimePaint = new Paint();
             mTimePaint.setColor(Color.WHITE);
             mTimePaint.setAntiAlias(true);
             mTimePaint.setStrokeCap(Paint.Cap.ROUND);
             mTimePaint.setTextSize(120f);
-            //mTimePaint.setTypeface(Typeface.DEFAULT);
 
             mTimePaint.getTextBounds(mNotificationDot, 0, mNotificationDot.length(), mNotificationBounds);
         }
@@ -168,7 +154,7 @@ public class OLEDSaver extends CanvasWatchFaceService {
                 int yDistance = Math.min(y, bounds.height() - (y + mTimeBounds.height()));
 
                 if (xDistance + yDistance < 20) { // todo: calculate the min value based on the screen's resolution
-                    calculateLocation(bounds);
+                    calculateLocation(bounds); // todo: set a max number of retries to avoid a potentially infinite loop here
                 }
             }
         }
@@ -178,11 +164,12 @@ public class OLEDSaver extends CanvasWatchFaceService {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
-            canvas.drawColor(Color.BLACK); // needed?
+            // clear the screen
+            canvas.drawColor(Color.BLACK);
 
             String time = timeFormat.format(mCalendar.getTime());
 
-            // todo: compare the hours and minutes instead of making a new string for each draw
+            // update the location only if the time has changed (so that it doesn't bounce around when going from ambient to awake)
             if(!time.equals(mTime)) {
                 mTime = time;
                 calculateLocation(bounds);
@@ -190,10 +177,10 @@ public class OLEDSaver extends CanvasWatchFaceService {
 
             canvas.drawText(time, x, y, mTimePaint);
 
-            int notificationCount = getUnreadCount();
-            if (notificationCount > 0) {
+            // add a dot if there are unread notifications
+            if (getUnreadCount() > 0) {
                 int notificationX = x + (mTimeBounds.width() / 2) - (mNotificationBounds.width()/2);
-                int notificationY = y + mNotificationBounds.height() + 45;
+                int notificationY = y + mTimeBounds.height() - mNotificationBounds.height();
                 canvas.drawText(mNotificationDot, notificationX, notificationY, mTimePaint);
             }
         }
