@@ -12,7 +12,6 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
-import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
 
@@ -86,6 +85,9 @@ public class OLEDSaver extends CanvasWatchFaceService {
         private int x;
         private int y;
         private boolean isRound;
+        // unicode circles: ∙ • ● ⚫ ⬤
+        private final String mNotificationDot = "∙";
+        private Rect mNotificationBounds = new Rect();
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -97,6 +99,7 @@ public class OLEDSaver extends CanvasWatchFaceService {
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(OLEDSaver.this)
                     .setAcceptsTapEvents(true)
+                    .setHideNotificationIndicator(true)
                     .build());
 
             mCalendar = Calendar.getInstance();
@@ -118,6 +121,8 @@ public class OLEDSaver extends CanvasWatchFaceService {
             mTimePaint.setStrokeCap(Paint.Cap.ROUND);
             mTimePaint.setTextSize(120f);
             //mTimePaint.setTypeface(Typeface.DEFAULT);
+
+            mTimePaint.getTextBounds(mNotificationDot, 0, mNotificationDot.length(), mNotificationBounds);
         }
 
         @Override
@@ -168,7 +173,6 @@ public class OLEDSaver extends CanvasWatchFaceService {
             }
         }
 
-
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
             long now = System.currentTimeMillis();
@@ -185,6 +189,13 @@ public class OLEDSaver extends CanvasWatchFaceService {
             }
 
             canvas.drawText(time, x, y, mTimePaint);
+
+            int notificationCount = getUnreadCount();
+            if (notificationCount > 0) {
+                int notificationX = x + (mTimeBounds.width() / 2) - (mNotificationBounds.width()/2);
+                int notificationY = y + mNotificationBounds.height() + 45;
+                canvas.drawText(mNotificationDot, notificationX, notificationY, mTimePaint);
+            }
         }
 
         @Override
